@@ -1,0 +1,223 @@
+== General notes ==
+OBS is case insensitive. This applies at leaste to scene names,
+source names and volume channels.
+OBS Remote, on the other hand, is case sensitive.
+
+== RPC format ==
+
+# Request template (from client to server):
+{
+  request-type: <string>, # name of the method to call
+  message-id: <number>, # optional
+  ...
+}
+
+# Successful response template (from server to client):
+{
+  message-id: <number>, # optional, as provided in request
+  status: "ok",
+  ...
+}
+
+# Error template (from server to client):
+{
+  message-id: <number>, # optional, as provided in request
+  status: "error",
+  error: <string> # error message
+}
+
+
+== RPC types ==
+
+GetVersion:
+  arguments: None
+  response:
+    version: <number>
+
+
+# Pay attention, that if authentication is required,
+# all calls except GetVersion, GetAuthRequired and Authenticate
+# will be responded to with error.
+# @salt and @challenge are only sent if authentication is required.
+GetAuthRequired:
+  arguments: None
+  response:
+    authRequired: <bool>
+    salt: <string> # optional
+    challenge: <string> # optional
+
+
+Authenticate:
+  arguments:
+    auth: <string>
+  response: None
+
+
+GetStreamingStatus:
+  arguments: None
+  response:
+    preview-only: <bool>
+    streaming: <bool>
+
+
+GetSceneList:
+  arguments: None
+  response:
+    scenes: [
+      <object:Scene> # described later
+    ]
+
+
+GetVolumes:
+  arguments: None
+  response:
+    "mic-volume": <number>
+    "desktop-volume": <number>
+    "mic-muted": <bool>
+    "desktop-muted": <bool>
+
+
+# Pay attention that if there's no scene with specified name,
+# then nothing will happen, and server will respond with "ok" status.
+SetCurrentScene:
+  arguments:
+    scene-name: <string>
+  response: None
+
+
+# Pay attention that if there's no source with specified name,
+# then this source name will be silently ignored.
+# Sources, that were specified in the request,
+# will be removed from source list of current scene
+# and then appended in specified order.
+SetSourceOrder:
+  arguments:
+    scene-names: [
+      <string> # name of source
+    ]
+  response: None
+
+
+# Pay attention that if there's no source with specified name,
+# then nothing will happen, and server will respond with "ok" status.
+SetSourceRender:
+  arguments:
+    source: <string> # name of source
+    render: <bool> # whether source is visible
+  response: None
+
+
+# If @channel isn't "desktop" or "microphone",
+# then server will respond with error.
+# Calling this method with @volume = 0 produces the same result
+# as calling ToggleMute.
+SetVolume:
+  arguments:
+    channel: <string> # either "desktop" or "microphone"
+    volume: <number> # will be clamped to [0.0, 1.0]
+    final: <bool> # whether value is expected to change further
+  response: None
+
+
+StartStopStreaming:
+  arguments: None
+  response: None
+
+
+# If @channel isn't "desktop" or "microphone",
+# then server will respond with error.
+ToggleMute:
+  arguments:
+    channel: <string> # either "desktop" or "microphone"
+  response: None
+
+
+
+== Update format ==
+
+# Template (from server to client):
+{
+  update-type: <string>,
+  ...
+}
+
+
+== Update types ==
+
+StreamStatus:
+  arguments:
+    num-dropped-frames: <number>
+    num-total-frames: <number>
+    streaming: <bool>
+    preview-only: <bool>
+    strain: <number>
+    fps: <number>
+    bytes-per-sec: <number>
+    total-stream-time: <number>
+
+
+StreamStarting
+  arguments:
+    preview-only: <bool>
+
+
+StreamStopping
+  arguments:
+    preview-only: <bool>
+
+
+SwitchScenes
+  arguments:
+    scene-name: <string>
+
+
+ScenesChanged
+  arguments: None
+
+
+SourceOrderChanged
+  arguments:
+    sources: [
+      <string> # name of source
+    ]
+
+
+SourceChanged
+  arguments:
+    source-name: <string>
+    source: <object:Source> # described later
+
+
+RepopulateSources
+  arguments:
+    sources: [
+      <object:Source> # described later
+    ]
+
+
+VolumeChanged
+  arguments:
+    channel: <string>
+    volume: <number> # from 0.0 to 1.0
+    finalValue: <bool> # whether value is expected to change further
+    muted: <bool>
+
+
+
+== Complex objects ==
+
+Scene = {
+  name: <string>,
+  sources: [
+    <object:Source>
+  ]
+}
+
+Source = {
+  name: <string>
+  render: <bool> # whether source is visible
+  cy: <number>
+  cx: <number>
+  y: <number>
+  x: <number> 
+}
